@@ -1,0 +1,19 @@
+services:
+  neo4j:
+    image: neo4j:latest
+    volumes:
+      - /$HOME/neo4j/logs:/logs
+      - /$HOME/neo4j/config:/config
+      - /$HOME/neo4j/data:/data
+      - /$HOME/neo4j/plugin:/plugins
+    environment:
+      - NEO4J_AUTH_FILE=/run/secrets/auth
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    restart: always
+    secrets:
+      - auth
+secrets:
+  auth:
+    file: ./auth.txt
