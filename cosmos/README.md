@@ -1,6 +1,5 @@
 # cosmos
 
-
 ## Setup
 To install dependencies:
 
@@ -14,7 +13,11 @@ To run:
 bun run src/index.ts
 ```
 
-This project was created using `bun init` in bun v1.1.31. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
-
 ## Related
-https://github.com/mattlgroff/learning-neo4j
+- Bun and Neo4j : https://github.com/mattlgroff/learning-neo4j
+
+Wikibase SDK
+- https://github.com/maxlath/wikibase-sdk/tree/main
+
+Wikidata Query Builder
+- https://query.wikidata.org/querybuilder/?uselang=fr
