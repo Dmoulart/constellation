@@ -1,5 +1,5 @@
 import neo4j from "neo4j-driver";
-import { env } from "./env";
+import { env } from "../env";
 
 export const driver = neo4j.driver(
   env("NEO4J_URL"),

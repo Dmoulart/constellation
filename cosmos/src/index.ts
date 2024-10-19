@@ -1,3 +1,5 @@
-import { importData } from "./dataset/wikibase/import";
+import wikidata from "./dataset/wikibase/import";
+import base from "./dataset/base/import";
 
-await importData();
+await base();
+await wikidata();

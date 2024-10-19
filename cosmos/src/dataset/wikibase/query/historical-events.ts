@@ -5,6 +5,12 @@ type HistoricalEvents = {
   country: string;
 };
 
+export type HistoricalEventsItem = {
+  item: WDAttribute;
+  date: WDAttribute;
+  itemLabel: WDAttribute;
+};
+
 const query = ({
   country,
   pagination: { limit, offset },
@@ -24,11 +30,5 @@ const query = ({
     }
   }
 `;
-
-export type HistoricalEventsItem = {
-  item: WDAttribute;
-  date: WDAttribute;
-  itemLabel: WDAttribute;
-};
 
 export default query;
