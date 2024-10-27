@@ -15,7 +15,7 @@ const query = ({
   country,
   pagination: { limit, offset },
 }: QueryOf<HistoricalEvents>) => `
-  SELECT DISTINCT ?item ?itemLabel ?date WHERE {
+  SELECT DISTINCT ?item ?itemLabel ?date ?id WHERE {
     SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],fr". }
     {
       SELECT DISTINCT ?item ?date WHERE {

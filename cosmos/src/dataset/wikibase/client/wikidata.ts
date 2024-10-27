@@ -6,8 +6,15 @@ const createWikidataClient = (config: InstanceConfig) => {
 
   return {
     async query<T>(query: string): Promise<WDResponse<T>> {
-      const url = client.sparqlQuery(query);
-      return await fetch(url).then(async (value) => await value.json());
+      try {
+        const url = client.sparqlQuery(query);
+        const response = await fetch(url);
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
     },
   };
 };
