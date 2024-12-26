@@ -13,7 +13,7 @@ export default async () => {
 
   await graph.run(
     `
-    CREATE CONSTRAINT IF NOT EXISTS FOR (e:Event) REQUIRE e.wikidata_entity_id IS UNIQUE
+    CREATE CONSTRAINT IF NOT EXISTS FOR (e:Event) REQUIRE e.wd_id IS UNIQUE
     `,
   );
 

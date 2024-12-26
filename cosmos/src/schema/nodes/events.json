@@ -1,0 +1,5 @@
+{
+  "label": "Event",
+  "properties": ["wd_id", "name", "date"],
+  "relations": ["country"]
+}
