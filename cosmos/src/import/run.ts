@@ -13,8 +13,6 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 });
 
-console.log({ values });
-// const directories = !!values.dir && values.dir.split(" ");
 let directories: undefined | Array<string> = undefined;
 
 if (values.dir) {

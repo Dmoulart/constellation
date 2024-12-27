@@ -17,6 +17,7 @@ type Load = {
 };
 
 type Import = {
+  name: string;
   createQuery?: (options: Record<string, any>) => string;
   staticData?: Array<Record<string, any>>;
   params: ImportParams;
@@ -77,7 +78,7 @@ export async function generateImports(options: {
 
   return await Promise.all(
     importDirs.map(async (importDir) => {
-      const imp: Import = {} as Import;
+      const imp: Import = { name: importDir.name } as Import;
 
       const dataFile = importDir.files.find(
         (files) => files.name === "data.json",
@@ -115,6 +116,7 @@ export async function generateImports(options: {
 }
 
 export async function runImport(imp: Import) {
+  console.info(`Starting import ${imp.name} 🌋`);
   try {
     if (imp.createQuery) {
       const limit = imp.params?.limit ?? 500;
@@ -177,6 +179,8 @@ export async function runImport(imp: Import) {
 }
 
 function extract(input: Record<string, any>, mapping: Mapping) {
+  if (Object.keys(mapping).length === 0) return input;
+
   const data: Record<string, any> = {};
 
   for (const [key, directives] of Object.entries(mapping)) {
@@ -186,16 +190,18 @@ function extract(input: Record<string, any>, mapping: Mapping) {
   return data;
 }
 
-function transform(data: Record<string, any>, mapping: Mapping) {
+function transform(input: Record<string, any>, mapping: Mapping) {
+  if (Object.keys(mapping).length === 0) return input;
+
   for (const [key, directives] of Object.entries(mapping)) {
     if (!directives.transform) continue;
 
     for (const expr of directives.transform) {
-      data[key] = evaluate(data[key], expr);
+      input[key] = evaluate(input[key], expr);
     }
   }
 
-  return data;
+  return input;
 }
 
 async function load(data: Record<string, any>, load: Load) {
