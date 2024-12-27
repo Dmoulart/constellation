@@ -18,5 +18,6 @@
     "primary_id": "wd_id",
     "node_label": "Event"
   },
-  "limit": 100
+  "limit": 10,
+  "resultsPerPage": 10
 }

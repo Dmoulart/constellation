@@ -6,6 +6,7 @@ import { graph } from "../graph/client";
 type ImportParams = {
   args: Record<string, any>;
   limit: number;
+  resultPerPage?: number;
   mapping: Mapping;
   load: Load;
 };
@@ -52,7 +53,9 @@ const functions = {
 
 const imports = await generateImports();
 
-imports.map(runImport);
+await Promise.allSettled(imports.map(runImport));
+
+await graph.close();
 
 async function generateImports(): Promise<Import[]> {
   const files = await readdir(__dirname, { withFileTypes: true });
@@ -99,23 +102,39 @@ async function generateImports(): Promise<Import[]> {
 
 export async function runImport(imp: Import) {
   try {
-    const pagination = { limit: 100, offset: 0 };
     const limit = imp.params?.limit ?? 500;
+    const resultsPerPage = imp.params?.resultPerPage ?? 50;
+    const pagination = { limit: resultsPerPage, offset: 0 };
 
     while (pagination.offset < limit) {
       const response = await wikidata.query<Record<string, any>>(
         imp.createQuery({ ...imp.params.args, ...pagination }),
       );
 
-      await Promise.allSettled(
+      // @todo parallel not working for neo4J for now. session handling
+      /*
+      const results = await Promise.allSettled(
         response.results.bindings.map((result) => {
           let data = extract(result, imp.params.mapping);
           data = transform(data, imp.params.mapping);
           return load(data, imp.params.load);
         }),
       );
+      */
+      const results = [];
+      for (const item of response.results.bindings) {
+        try {
+          let data = extract(item, imp.params.mapping);
+          data = transform(data, imp.params.mapping);
+          const result = await load(data, imp.params.load);
+          results.push(result);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      console.info(`${results.length} records successfully inserted 🍾`);
 
-      pagination.offset += 100;
+      pagination.offset += resultsPerPage;
 
       Bun.sleepSync(10);
     }
@@ -166,13 +185,12 @@ async function load(data: Record<string, any>, load: Load) {
   }
 
   const query = [
-    `MERGE (node:${label} {${idKey}: $${primaryId}})`,
+    `MERGE (node:${label} {${idKey}: $${idKey}})`,
     ...Object.keys(data).map((key) => {
       return `SET node.${key} = $${key}`;
     }),
   ].join("\n");
 
-  console.log({ query, data });
   return await graph.run(query, data);
 }
 
