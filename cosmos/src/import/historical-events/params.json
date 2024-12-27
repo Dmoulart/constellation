@@ -2,5 +2,17 @@
   "args": {
     "country": "Q142"
   },
+  "mapping": {
+    "wd_id": {
+      "from": { "key": ["item", "value"] },
+      "transform": [{ "split": "/" }, { "at": -1 }]
+    },
+    "date": {
+      "from": { "key": ["date", "value"] }
+    },
+    "label": {
+      "from": { "key": ["itemLabel", "value"] }
+    }
+  },
   "limit": 600
 }

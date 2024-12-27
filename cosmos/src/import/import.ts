@@ -4,6 +4,7 @@ import { wikidata } from "../dataset/wikibase/client/wikidata";
 type ImportParams = {
   args: Record<string, any>;
   limit: number;
+  mapping: Mapping;
 };
 
 type Import = {
@@ -11,9 +12,39 @@ type Import = {
   params: ImportParams;
 };
 
+type KeyMapping = {
+  primary_id?: boolean;
+  from: Expression;
+  transform?: Expression[];
+};
+
+type Mapping = Record<string, KeyMapping>;
+
+type Expression = string | SplitExpression | KeyExpression;
+
+type SplitExpression = {
+  split: string;
+};
+
+type KeyExpression = {
+  key: string | number;
+};
+
+const functions = {
+  key(input: Record<string, any>, args: string | number | string[]) {
+    return extractFromPath(input, Array.isArray(args) ? args : [args]);
+  },
+  split(input: string, args: string) {
+    return input.split(args);
+  },
+  at(input: string | Array<any>, index: number) {
+    return input.at(index);
+  },
+};
+
 const imports = await generateImports();
 
-imports.map(load);
+imports.map(runImport);
 
 async function generateImports(): Promise<Import[]> {
   const files = await readdir(__dirname, { withFileTypes: true });
@@ -58,17 +89,20 @@ async function generateImports(): Promise<Import[]> {
   );
 }
 
-export async function load(imp: Import) {
+export async function runImport(imp: Import) {
   try {
     const pagination = { limit: 100, offset: 0 };
     const limit = imp.params?.limit ?? 500;
 
-    while (pagination.offset <= limit) {
-      const result = await wikidata.query(
+    while (pagination.offset < limit) {
+      const res = await wikidata.query<Record<string, any>>(
         imp.createQuery({ ...imp.params.args, ...pagination }),
       );
 
-      console.log({ result });
+      for (const result of res.results.bindings) {
+        let data = extract(result, imp.params.mapping);
+        data = transform(data, imp.params.mapping);
+      }
 
       pagination.offset += 100;
 
@@ -78,4 +112,67 @@ export async function load(imp: Import) {
     console.error("LOAD_ERROR", e);
     throw e;
   }
+}
+
+function extract(input: Record<string, any>, mapping: Mapping) {
+  const data: Record<string, any> = {};
+
+  for (const [key, directives] of Object.entries(mapping)) {
+    data[key] = evaluate(input, directives.from);
+  }
+
+  return data;
+}
+
+function transform(data: Record<string, any>, mapping: Mapping) {
+  for (const [key, directives] of Object.entries(mapping)) {
+    if (!directives.transform) continue;
+
+    for (const expr of directives.transform) {
+      data[key] = evaluate(data[key], expr);
+    }
+  }
+
+  return data;
+}
+
+function evaluate(input: Record<string, any>, expression: Expression) {
+  if (typeof expression === "string") {
+    return expression;
+  }
+
+  /*
+  if (Array.isArray(expression)) {
+    return expression.map((expr: Expression) => evaluate(input, expr)); as Array<Expression>
+  }
+ */
+
+  if (typeof expression === "object") {
+    let result = input;
+
+    for (const key in expression) {
+      if (key in functions) {
+        result = (functions as any)[key](result, (expression as any)[key]);
+      }
+    }
+
+    return result;
+  }
+
+  return expression;
+}
+
+function extractFromPath(
+  input: Record<string, any>,
+  path: (string | number)[],
+) {
+  let curr = input;
+
+  for (const key of path) {
+    if (curr[key] === undefined) break;
+
+    curr = curr[key];
+  }
+
+  return curr;
 }
