@@ -17,7 +17,8 @@ type Load = {
 };
 
 type Import = {
-  createQuery(options: Record<string, any>): string;
+  createQuery?: (options: Record<string, any>) => string;
+  staticData?: Array<Record<string, any>>;
   params: ImportParams;
 };
 
@@ -51,16 +52,18 @@ const functions = {
   },
 };
 
-const imports = await generateImports();
-
-await Promise.allSettled(imports.map(runImport));
-
-await graph.close();
-
-async function generateImports(): Promise<Import[]> {
+export async function generateImports(options: {
+  directories?: Array<string>;
+}): Promise<Import[]> {
   const files = await readdir(__dirname, { withFileTypes: true });
 
-  const directories = files.filter((file) => file.isDirectory());
+  let directories = files.filter((file) => file.isDirectory());
+
+  if (options.directories) {
+    directories = directories.filter((file) =>
+      options.directories!.includes(file.name),
+    );
+  }
 
   const importDirs = await Promise.all(
     directories.map(async (dir) => {
@@ -74,55 +77,87 @@ async function generateImports(): Promise<Import[]> {
 
   return await Promise.all(
     importDirs.map(async (importDir) => {
+      const imp: Import = {} as Import;
+
+      const dataFile = importDir.files.find(
+        (files) => files.name === "data.json",
+      );
+
+      if (dataFile) {
+        const dataPath = `${dataFile.parentPath}/data.json`;
+        const data = (await readFile(dataPath)).toString();
+        imp.staticData = JSON.parse(data);
+      }
+
       const queryFile = importDir.files.find((files) =>
         files.name.endsWith(".sparql"),
       );
 
-      if (queryFile === undefined) {
-        throw new Error(`Expected query file in ${importDir.name}.`);
+      if (queryFile) {
+        const queryPath = `${queryFile.parentPath}/${queryFile.name}`;
+
+        const queryString = (await readFile(queryPath)).toString();
+
+        const createQuery = createStringTemplate(queryString);
+        imp.createQuery = createQuery;
       }
 
-      const queryPath = `${queryFile.parentPath}/${queryFile.name}`;
-
-      const queryString = (await readFile(queryPath)).toString();
-
-      const createQuery = createStringTemplate(queryString);
-
-      const paramsPath = `${queryFile.parentPath}/params.json`;
+      const paramsPath = `${__dirname}/${importDir.name}/params.json`;
 
       const params = JSON.parse((await readFile(paramsPath)).toString());
+      imp.params = params;
+      // easier for the rest of the process to have a non nullable object even if its not mandatory in config
+      imp.params.mapping ??= {};
 
-      return {
-        createQuery,
-        params,
-      };
+      return imp;
     }),
   );
 }
 
 export async function runImport(imp: Import) {
   try {
-    const limit = imp.params?.limit ?? 500;
-    const resultsPerPage = imp.params?.resultPerPage ?? 50;
-    const pagination = { limit: resultsPerPage, offset: 0 };
+    if (imp.createQuery) {
+      const limit = imp.params?.limit ?? 500;
+      const resultsPerPage = imp.params?.resultPerPage ?? 50;
+      const pagination = { limit: resultsPerPage, offset: 0 };
 
-    while (pagination.offset < limit) {
-      const response = await wikidata.query<Record<string, any>>(
-        imp.createQuery({ ...imp.params.args, ...pagination }),
-      );
+      while (pagination.offset < limit) {
+        const response = await wikidata.query<Record<string, any>>(
+          imp.createQuery({ ...imp.params.args, ...pagination }),
+        );
 
-      // @todo parallel not working for neo4J for now. session handling
-      /*
-      const results = await Promise.allSettled(
-        response.results.bindings.map((result) => {
-          let data = extract(result, imp.params.mapping);
-          data = transform(data, imp.params.mapping);
-          return load(data, imp.params.load);
-        }),
-      );
-      */
+        // @todo parallel not working for neo4J for now. session handling
+        /*
+        const results = await Promise.allSettled(
+          response.results.bindings.map((result) => {
+            let data = extract(result, imp.params.mapping);
+            data = transform(data, imp.params.mapping);
+            return load(data, imp.params.load);
+          }),
+        );
+        */
+        const results = [];
+        for (const item of response.results.bindings) {
+          try {
+            let data = extract(item, imp.params.mapping);
+            data = transform(data, imp.params.mapping);
+            const result = await load(data, imp.params.load);
+            results.push(result);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        console.info(`${results.length} records successfully inserted 🍾`);
+
+        pagination.offset += resultsPerPage;
+
+        Bun.sleepSync(10);
+      }
+    } else if (imp.staticData) {
+      const data = imp.staticData;
+
       const results = [];
-      for (const item of response.results.bindings) {
+      for (const item of data) {
         try {
           let data = extract(item, imp.params.mapping);
           data = transform(data, imp.params.mapping);
@@ -132,11 +167,8 @@ export async function runImport(imp: Import) {
           console.error(e);
         }
       }
+
       console.info(`${results.length} records successfully inserted 🍾`);
-
-      pagination.offset += resultsPerPage;
-
-      Bun.sleepSync(10);
     }
   } catch (e) {
     console.error("LOAD_ERROR", e);
@@ -180,11 +212,13 @@ async function load(data: Record<string, any>, load: Load) {
   }
 
   const label = evaluate(data, load.node_label);
+
   if (typeof label !== "string") {
     throw new Error("Expected string type for label");
   }
 
   const query = [
+    // allows us to get a reference to the node we're interested in
     `MERGE (node:${label} {${idKey}: $${idKey}})`,
     ...Object.keys(data).map((key) => {
       return `SET node.${key} = $${key}`;
