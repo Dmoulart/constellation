@@ -1,10 +1,18 @@
 import { readdir, readFile } from "node:fs/promises";
 import { createStringTemplate } from "../string/template";
 import { wikidata } from "../dataset/wikibase/client/wikidata";
+import { graph } from "../graph/client";
+
 type ImportParams = {
   args: Record<string, any>;
   limit: number;
   mapping: Mapping;
+  load: Load;
+};
+
+type Load = {
+  primary_id: Expression;
+  node_label: string;
 };
 
 type Import = {
@@ -95,14 +103,17 @@ export async function runImport(imp: Import) {
     const limit = imp.params?.limit ?? 500;
 
     while (pagination.offset < limit) {
-      const res = await wikidata.query<Record<string, any>>(
+      const response = await wikidata.query<Record<string, any>>(
         imp.createQuery({ ...imp.params.args, ...pagination }),
       );
 
-      for (const result of res.results.bindings) {
-        let data = extract(result, imp.params.mapping);
-        data = transform(data, imp.params.mapping);
-      }
+      await Promise.allSettled(
+        response.results.bindings.map((result) => {
+          let data = extract(result, imp.params.mapping);
+          data = transform(data, imp.params.mapping);
+          return load(data, imp.params.load);
+        }),
+      );
 
       pagination.offset += 100;
 
@@ -134,6 +145,35 @@ function transform(data: Record<string, any>, mapping: Mapping) {
   }
 
   return data;
+}
+
+async function load(data: Record<string, any>, load: Load) {
+  const idKey = evaluate(data, load.primary_id);
+
+  if (typeof idKey !== "string") {
+    throw new Error("Expected string type for primary id");
+  }
+
+  const primaryId = data[idKey];
+
+  if (primaryId === undefined) {
+    throw new Error("Expected primary id in data");
+  }
+
+  const label = evaluate(data, load.node_label);
+  if (typeof label !== "string") {
+    throw new Error("Expected string type for label");
+  }
+
+  const query = [
+    `MERGE (node:${label} {${idKey}: $${primaryId}})`,
+    ...Object.keys(data).map((key) => {
+      return `SET node.${key} = $${key}`;
+    }),
+  ].join("\n");
+
+  console.log({ query, data });
+  return await graph.run(query, data);
 }
 
 function evaluate(input: Record<string, any>, expression: Expression) {

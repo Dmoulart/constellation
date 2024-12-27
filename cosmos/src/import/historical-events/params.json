@@ -14,5 +14,9 @@
       "from": { "key": ["itemLabel", "value"] }
     }
   },
-  "limit": 600
+  "load": {
+    "primary_id": "wd_id",
+    "node_label": "Event"
+  },
+  "limit": 100
 }
