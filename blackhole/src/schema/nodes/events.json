@@ -1,0 +1,9 @@
+{
+  "label": "Event",
+  "attributes": {
+    "wd_id": {
+      "unique": true,
+      "type": "string"
+    }
+  }
+}

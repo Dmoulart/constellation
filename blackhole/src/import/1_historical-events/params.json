@@ -1,0 +1,35 @@
+{
+  "args": {
+    "country": "Q142"
+  },
+  "mapping": {
+    "#node_label": {
+      "from": "Event"
+    },
+    "wd_id": {
+      "from": { "key": ["item", "value"] },
+      "transform": [{ "split": "/" }, { "at": -1 }]
+    },
+    "date": {
+      "from": { "key": ["date", "value"] }
+    },
+    "label": {
+      "from": { "key": ["itemLabel", "value"] }
+    }
+  },
+  "load": {
+    "primary_id": "wd_id",
+    "relations": [
+      {
+        "target": {
+          "#node_label": "Country",
+          "wd_id": "Q142"
+        },
+        "type": "COUNTRY",
+        "direction": "IN"
+      }
+    ]
+  },
+  "limit": 600,
+  "resultsPerPage": 100
+}
