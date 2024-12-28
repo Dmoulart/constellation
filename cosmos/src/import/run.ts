@@ -1,6 +1,7 @@
 import { parseArgs } from "util";
-import { generateImports, runImport } from "./import";
+import { parseImports, runImport } from "./import";
 import { graph } from "../graph/client";
+import { applyNodeConstraints } from "../schema/schema";
 
 const { values, positionals } = parseArgs({
   args: Bun.argv,
@@ -19,7 +20,9 @@ if (values.dir) {
   directories = values.dir.split(" ");
 }
 
-const imports = await generateImports({
+await applyNodeConstraints();
+
+const imports = await parseImports({
   directories,
 });
 

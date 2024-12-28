@@ -3,6 +3,9 @@
     "country": "Q142"
   },
   "mapping": {
+    "#node_label": {
+      "from": "Event"
+    },
     "wd_id": {
       "from": { "key": ["item", "value"] },
       "transform": [{ "split": "/" }, { "at": -1 }]
@@ -16,8 +19,17 @@
   },
   "load": {
     "primary_id": "wd_id",
-    "node_label": "Event"
+    "relations": [
+      {
+        "target": {
+          "#node_label": "Country",
+          "wd_id": "Q142"
+        },
+        "type": "COUNTRY",
+        "direction": "IN"
+      }
+    ]
   },
-  "limit": 10,
-  "resultsPerPage": 10
+  "limit": 600,
+  "resultsPerPage": 100
 }

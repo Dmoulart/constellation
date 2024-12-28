@@ -1,6 +1,6 @@
 {
   "load": {
-    "primary_id": "label",
+    "primary_id": "wd_id",
     "node_label": "Country"
   }
 }

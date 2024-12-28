@@ -2,18 +2,25 @@ import { readdir, readFile } from "node:fs/promises";
 import { createStringTemplate } from "../string/template";
 import { wikidata } from "../dataset/wikibase/client/wikidata";
 import { graph } from "../graph/client";
+import { GraphNode } from "../graph/node";
 
 type ImportParams = {
   args: Record<string, any>;
   limit: number;
-  resultPerPage?: number;
+  resultsPerPage?: number;
   mapping: Mapping;
   load: Load;
 };
 
+type Relation = {
+  target: Record<string, any>;
+  direction: "IN" | "OUT";
+  type: string;
+};
+
 type Load = {
   primary_id: Expression;
-  node_label: string;
+  relations?: Array<Relation>;
 };
 
 type Import = {
@@ -53,7 +60,7 @@ const functions = {
   },
 };
 
-export async function generateImports(options: {
+export async function parseImports(options: {
   directories?: Array<string>;
 }): Promise<Import[]> {
   const files = await readdir(__dirname, { withFileTypes: true });
@@ -120,7 +127,7 @@ export async function runImport(imp: Import) {
   try {
     if (imp.createQuery) {
       const limit = imp.params?.limit ?? 500;
-      const resultsPerPage = imp.params?.resultPerPage ?? 50;
+      const resultsPerPage = imp.params?.resultsPerPage ?? 50;
       const pagination = { limit: resultsPerPage, offset: 0 };
 
       while (pagination.offset < limit) {
@@ -170,7 +177,9 @@ export async function runImport(imp: Import) {
         }
       }
 
-      console.info(`${results.length} records successfully inserted 🍾`);
+      console.info(
+        `${imp.name} : ${results.length} records successfully inserted 🍾`,
+      );
     }
   } catch (e) {
     console.error("LOAD_ERROR", e);
@@ -217,21 +226,75 @@ async function load(data: Record<string, any>, load: Load) {
     throw new Error("Expected primary id in data");
   }
 
-  const label = evaluate(data, load.node_label);
+  let label: string;
 
-  if (typeof label !== "string") {
-    throw new Error("Expected string type for label");
+  if (data["#node_label"]) {
+    label = data["#node_label"];
+
+    if (typeof label !== "string") {
+      throw new Error("Node label must be of type string");
+    }
+
+    delete data["#node_label"];
+  } else {
+    throw new Error("Expected node label");
+  }
+
+  const getRelations: string[] = [];
+  const setRelations: string[] = [];
+  const paramsRelations: Record<string, any>[] = [];
+
+  if (load.relations) {
+    load.relations.forEach((relation, i) => {
+      /*const target: Record<string, any> =
+        typeof relation.target === "object"
+          ? evaluateObject(data, relation.target)
+          : (evaluate(data, relation.target) as Record<string, any>);
+          */
+      const target = relation.target;
+      
+      assert(target["#node_label"], "Expected node label");
+      const nodeLabel = target["#node_label"];
+
+      assert(target[idKey], "Expected relation target to have primary ID key");
+
+      getRelations.push(
+        `MATCH (r${i}: ${nodeLabel} { ${idKey}: $${idKey}_r${i} })`,
+      );
+      const type = evaluate(data, relation.type);
+
+      const direction = evaluate(data, relation.direction);
+      const setRelation =
+        direction === "IN"
+          ? `MERGE (node)-[:${type}]->(r${i})`
+          : `MERGE (node)<-[:${type}]-(r${i})`;
+
+      setRelations.push(setRelation);
+
+      paramsRelations.push({
+        [`${idKey}_r${i}`]: target[idKey],
+      });
+    });
   }
 
   const query = [
+    ...getRelations,
     // allows us to get a reference to the node we're interested in
     `MERGE (node:${label} {${idKey}: $${idKey}})`,
     ...Object.keys(data).map((key) => {
       return `SET node.${key} = $${key}`;
     }),
+    ...setRelations,
   ].join("\n");
 
-  return await graph.run(query, data);
+  const parameters = data;
+  for (const paramRelation of paramsRelations) {
+    for (const key in paramRelation) {
+      parameters[key] = paramRelation[key];
+    }
+  }
+
+  return await graph.run(query, parameters);
 }
 
 function evaluate(input: Record<string, any>, expression: Expression) {
@@ -260,6 +323,17 @@ function evaluate(input: Record<string, any>, expression: Expression) {
   return expression;
 }
 
+function evaluateObject(
+  data: Record<string, any>,
+  object: Record<string, any>,
+) {
+  for (const key in object) {
+    object[key] = evaluate(data, object[key]);
+  }
+
+  return object;
+}
+
 function extractFromPath(
   input: Record<string, any>,
   path: (string | number)[],
@@ -267,10 +341,18 @@ function extractFromPath(
   let curr = input;
 
   for (const key of path) {
-    if (curr[key] === undefined) break;
+    if (curr[key] === undefined) return undefined;
 
     curr = curr[key];
   }
 
   return curr;
 }
+
+function assert(ok: boolean, msg: string) {
+  if (!ok) {
+    throw new AssertionFailed(msg);
+  }
+}
+
+class AssertionFailed extends Error {}

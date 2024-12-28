@@ -1,8 +1,12 @@
 [
   {
+    "#node_label": "Country",
+    "wd_id": "Q142",
     "label": "France"
   },
   {
+    "#node_label": "Country",
+    "wd_id": "Q183",
     "label": "Allemagne"
   }
 ]
