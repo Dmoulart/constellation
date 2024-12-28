@@ -1,0 +1,19 @@
+{
+  "mapping": {
+    "#node_label": {
+      "from": "InstrumentOfTorture"
+    },
+    "wd_id": {
+      "from": { "key": ["item", "value"] },
+      "transform": [{ "split": "/" }, { "at": -1 }]
+    },
+    "label": {
+      "from": { "key": ["itemLabel", "value"] }
+    }
+  },
+  "load": {
+    "primary_id": "wd_id"
+  },
+  "limit": 100,
+  "resultsPerPage": 100
+}
