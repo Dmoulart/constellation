@@ -1,0 +1,9 @@
+SELECT ?eyeColor ?eyeColorLabel (COUNT(?human) AS ?count)
+WHERE
+{
+  ?human wdt:P31 wd:Q5.
+  ?human wdt:P1340 ?eyeColor.
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],fr,en". }
+}
+GROUP BY ?eyeColor ?eyeColorLabel
+ORDER BY DESC(?count)

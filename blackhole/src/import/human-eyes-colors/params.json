@@ -1,0 +1,17 @@
+{
+  "mapping": {
+    "#node_label": {
+      "from": "HumanEyeColor"
+    },
+    "wd_id": {
+      "from": { "key": ["eyeColor", "value"] },
+      "transform": [{ "split": "/" }, { "at": -1 }]
+    },
+    "label": {
+      "from": { "key": ["eyeColorLabel", "value"] }
+    }
+  },
+  "load": {
+    "primary_id": "wd_id"
+  }
+}

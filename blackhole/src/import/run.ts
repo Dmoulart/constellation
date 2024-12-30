@@ -29,3 +29,5 @@ const imports = await parseImports({
 await Promise.allSettled(imports.map(runImport));
 
 await graph.close();
+
+console.info("Imports end");
