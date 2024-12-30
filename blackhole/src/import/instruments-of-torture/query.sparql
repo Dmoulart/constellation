@@ -4,3 +4,5 @@ WHERE
   ?item wdt:P366 wd:Q132781 .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],fr" }
 }
+LIMIT $limit
+OFFSET $offset

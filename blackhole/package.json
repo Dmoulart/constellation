@@ -2,6 +2,9 @@
   "name": "cosmos",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "import": "bun run ./src/import/run.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

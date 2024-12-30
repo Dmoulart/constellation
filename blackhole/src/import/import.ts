@@ -124,6 +124,7 @@ export async function parseImports(options: {
 
 export async function runImport(imp: Import) {
   console.info(`Starting import ${imp.name} 🌋`);
+
   try {
     if (imp.createQuery) {
       const limit = imp.params?.limit ?? 500;
@@ -156,7 +157,9 @@ export async function runImport(imp: Import) {
             console.error(e);
           }
         }
-        console.info(`${results.length} records successfully inserted 🍾`);
+        console.info(
+          `${imp.name} : ${results.length} records successfully inserted 🍾`,
+        );
 
         pagination.offset += resultsPerPage;
 
@@ -252,7 +255,7 @@ async function load(data: Record<string, any>, load: Load) {
           : (evaluate(data, relation.target) as Record<string, any>);
           */
       const target = relation.target;
-      
+
       assert(target["#node_label"], "Expected node label");
       const nodeLabel = target["#node_label"];
 
