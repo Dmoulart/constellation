@@ -10,8 +10,14 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@vueuse/core": "^12.2.0",
+    "maplibre-gl": "^4.7.1",
+    "neo4j-driver": "^5.27.0",
     "nuxt": "^3.15.0",
     "vue": "latest",
     "vue-router": "latest"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.15"
   }
 }
