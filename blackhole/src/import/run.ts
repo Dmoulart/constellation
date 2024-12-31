@@ -1,6 +1,6 @@
 import { parseArgs } from "util";
 import { parseImports, runImport } from "./import";
-import { graph } from "../graph/client";
+import { graph, driver } from "../graph/client";
 import { applyNodeConstraints } from "../schema/schema";
 
 const { values, positionals } = parseArgs({
@@ -29,5 +29,6 @@ const imports = await parseImports({
 await Promise.allSettled(imports.map(runImport));
 
 await graph.close();
+await driver.close();
 
 console.info("Imports end");

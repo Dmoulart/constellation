@@ -58,6 +58,21 @@ const functions = {
   at(input: string | Array<any>, index: number) {
     return input.at(index);
   },
+  from_url_to_wd_id(input: string, args: string) {
+    return input.split("/").at(-1);
+  },
+  from_wd_point_to_point(input: string, args: string) {
+    const match = input.match(/^Point\(([^ ]+)\s+([^)]+)\)$/);
+    if (!match) {
+      throw new Error("Invalid point format. Expected 'Point(x y)'.");
+    }
+
+    const [_, x, y] = match;
+    const lng = parseFloat(x.trim());
+    const lat = parseFloat(y.trim());
+
+    return { lng, lat };
+  },
 };
 
 export async function parseImports(options: {
@@ -136,17 +151,10 @@ export async function runImport(imp: Import) {
           imp.createQuery({ ...imp.params.args, ...pagination }),
         );
 
-        // @todo parallel not working for neo4J for now. session handling
-        /*
-        const results = await Promise.allSettled(
-          response.results.bindings.map((result) => {
-            let data = extract(result, imp.params.mapping);
-            data = transform(data, imp.params.mapping);
-            return load(data, imp.params.load);
-          }),
-        );
-        */
+        if (response.results.bindings.length === 0) break;
+
         const results = [];
+
         for (const item of response.results.bindings) {
           try {
             let data = extract(item, imp.params.mapping);

@@ -1,0 +1,27 @@
+{
+  "mapping": {
+    "#node_label": {
+      "from": "Hospitals"
+    },
+    "wd_id": {
+      "from": { "key": ["item", "value"] },
+      "transform": [{ "from_url_to_wd_id": null }]
+    },
+    "label": {
+      "from": { "key": ["label", "value"] }
+    },
+    "lng": {
+      "from": { "key": ["geo", "value"] },
+      "transform": [{ "from_wd_point_to_point": null }, { "key": "lng" }]
+    },
+    "lat": {
+      "from": { "key": ["geo", "value"] },
+      "transform": [{ "from_wd_point_to_point": null }, { "key": "lat" }]
+    }
+  },
+  "load": {
+    "primary_id": "wd_id"
+  },
+  "limit": 20000,
+  "resultsPerPage": 100
+}
